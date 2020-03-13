@@ -3126,6 +3126,7 @@ func TestGetChannelModerations(t *testing.T) {
 		for _, moderation := range moderations {
 			if moderation.Name == "manage_members" {
 				require.Equal(t, moderation.Roles.Members.Value, false)
+				require.Equal(t, moderation.Roles.Members.Enabled, false)
 			}
 		}
 
@@ -3135,6 +3136,7 @@ func TestGetChannelModerations(t *testing.T) {
 		for _, moderation := range moderations {
 			if moderation.Name == "manage_members" {
 				require.Equal(t, moderation.Roles.Members.Value, true)
+				require.Equal(t, moderation.Roles.Members.Enabled, true)
 			}
 		}
 	})

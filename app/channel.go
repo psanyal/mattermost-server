@@ -781,7 +781,7 @@ func (a *App) GetChannelModerationsForChannel(channel *model.Channel) ([]*model.
 		return nil, err
 	}
 
-	return buildChannelModerations(memberRole, guestRole, higherScopedMemberRole, higherScopedGuestRole), nil
+	return buildChannelModerations(channel.Type, memberRole, guestRole, higherScopedMemberRole, higherScopedGuestRole), nil
 }
 
 // PatchChannelModerationsForChannel Updates a channels scheme roles based on a given ChannelModerationPatch, if the permissions match the higher scoped role the scheme is deleted.
@@ -801,11 +801,24 @@ func (a *App) PatchChannelModerationsForChannel(channel *model.Channel, channelM
 	higherScopedGuestPermissions := higherScopedGuestRole.GetChannelModeratedPermissions()
 
 	for _, moderationPatch := range channelModerationsPatch {
-		if moderationPatch.Roles.Members != nil && *moderationPatch.Roles.Members && !higherScopedMemberPermissions[*moderationPatch.Name] {
-			return nil, &model.AppError{Message: "Cannot add a permission that is restricted by the team or system permission scheme"}
+		var permissionName string
+		if *moderationPatch.Name == "manage_members" {
+			if channel.Type == model.CHANNEL_OPEN {
+				permissionName = model.PERMISSION_MANAGE_PUBLIC_CHANNEL_MEMBERS.Id
+			}
+			if channel.Type == model.CHANNEL_PRIVATE {
+				permissionName = model.PERMISSION_MANAGE_PRIVATE_CHANNEL_MEMBERS.Id
+			}
+		} else {
+			permissionName = *moderationPatch.Name
 		}
-		if moderationPatch.Roles.Guests != nil && *moderationPatch.Roles.Guests && !higherScopedGuestPermissions[*moderationPatch.Name] {
-			return nil, &model.AppError{Message: "Cannot add a permission that is restricted by the team or system permission scheme"}
+
+		appErr := model.NewAppError("App.PatchChannelModerationsForChannel", "api.channel.permission_restricted_by_system_or_team_scheme", nil, "", http.StatusBadRequest)
+		if moderationPatch.Roles.Members != nil && *moderationPatch.Roles.Members && !higherScopedMemberPermissions[permissionName] {
+			return nil, appErr
+		}
+		if moderationPatch.Roles.Guests != nil && *moderationPatch.Roles.Guests && !higherScopedGuestPermissions[permissionName] {
+			return nil, appErr
 		}
 	}
 
@@ -827,8 +840,8 @@ func (a *App) PatchChannelModerationsForChannel(channel *model.Channel, channelM
 		return nil, err
 	}
 
-	memberRolePatch := memberRole.RolePatchFromChannelModerationsPatch(channelModerationsPatch, "members")
-	guestRolePatch := guestRole.RolePatchFromChannelModerationsPatch(channelModerationsPatch, "guests")
+	memberRolePatch := memberRole.RolePatchFromChannelModerationsPatch(channel.Type, channelModerationsPatch, "members")
+	guestRolePatch := guestRole.RolePatchFromChannelModerationsPatch(channel.Type, channelModerationsPatch, "guests")
 
 	memberRolePermissionsUnmodified := len(model.ChannelModeratedPermissionsChangedByPatch(higherScopedMemberRole, memberRolePatch)) == 0
 	guestRolePermissionsUnmodified := len(model.ChannelModeratedPermissionsChangedByPatch(higherScopedGuestRole, guestRolePatch)) == 0
@@ -850,10 +863,10 @@ func (a *App) PatchChannelModerationsForChannel(channel *model.Channel, channelM
 		}
 	}
 
-	return buildChannelModerations(memberRole, guestRole, higherScopedMemberRole, higherScopedGuestRole), nil
+	return buildChannelModerations(channel.Type, memberRole, guestRole, higherScopedMemberRole, higherScopedGuestRole), nil
 }
 
-func buildChannelModerations(memberRole *model.Role, guestRole *model.Role, higherScopedMemberRole *model.Role, higherScopedGuestRole *model.Role) []*model.ChannelModeration {
+func buildChannelModerations(channelType string, memberRole, guestRole, higherScopedMemberRole, higherScopedGuestRole *model.Role) []*model.ChannelModeration {
 	memberPermissions := memberRole.GetChannelModeratedPermissions()
 	guestPermissions := guestRole.GetChannelModeratedPermissions()
 	higherScopedMemberPermissions := higherScopedMemberRole.GetChannelModeratedPermissions()
@@ -863,22 +876,30 @@ func buildChannelModerations(memberRole *model.Role, guestRole *model.Role, high
 	for _, permissionKey := range model.CHANNEL_MODERATED_PERMISSIONS {
 		roles := &model.ChannelModeratedRoles{}
 
-		roles.Members = &model.ChannelModeratedRole{
-			Value:   memberPermissions[permissionKey],
-			Enabled: higherScopedMemberPermissions[permissionKey],
+		var displayKey string
+
+		if (permissionKey == model.PERMISSION_MANAGE_PUBLIC_CHANNEL_MEMBERS.Id) && (channelType != model.CHANNEL_OPEN) || (permissionKey == model.PERMISSION_MANAGE_PRIVATE_CHANNEL_MEMBERS.Id) && (channelType != model.CHANNEL_PRIVATE) {
+			continue
 		}
 
-		if permissionKey == "manage_members" {
+		if permissionKey == model.PERMISSION_MANAGE_PUBLIC_CHANNEL_MEMBERS.Id || permissionKey == model.PERMISSION_MANAGE_PRIVATE_CHANNEL_MEMBERS.Id {
 			roles.Guests = nil
+			displayKey = "manage_members"
 		} else {
 			roles.Guests = &model.ChannelModeratedRole{
 				Value:   guestPermissions[permissionKey],
 				Enabled: higherScopedGuestPermissions[permissionKey],
 			}
+			displayKey = permissionKey
+		}
+
+		roles.Members = &model.ChannelModeratedRole{
+			Value:   memberPermissions[permissionKey],
+			Enabled: higherScopedMemberPermissions[permissionKey],
 		}
 
 		moderation := &model.ChannelModeration{
-			Name:  permissionKey,
+			Name:  displayKey,
 			Roles: roles,
 		}
 

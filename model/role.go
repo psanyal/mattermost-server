@@ -246,7 +246,7 @@ func (r *Role) GetChannelModeratedPermissions() map[string]bool {
 }
 
 // RolePatchFromChannelModerationsPatch Creates and returns a RolePatch based on a slice of ChannelModerationPatchs, roleName is expected to be either "members" or "guests".
-func (r *Role) RolePatchFromChannelModerationsPatch(channelModerationsPatch []*ChannelModerationPatch, roleName string) *RolePatch {
+func (r *Role) RolePatchFromChannelModerationsPatch(channelType string, channelModerationsPatch []*ChannelModerationPatch, roleName string) *RolePatch {
 	permissionsToAddToPatch := make(map[string]bool)
 
 	// Iterate through the list of existing permissions on the role and append permissions that we want to keep.
@@ -259,7 +259,7 @@ func (r *Role) RolePatchFromChannelModerationsPatch(channelModerationsPatch []*C
 		permissionEnabled := true
 		// Check if permission has a matching moderated permission name inside the channel moderation patch
 		for _, channelModerationPatch := range channelModerationsPatch {
-			if *channelModerationPatch.Name == CHANNEL_MODERATED_PERMISSIONS_MAP[permission] {
+			if *channelModerationPatch.Name == CHANNEL_MODERATED_PERMISSIONS_MAP[permission] || (*channelModerationPatch.Name == "manage_members" && ManageMembersPermissionMatchesChannelType(permission, channelType)) {
 				// Permission key exists in patch with a value of false so skip over it
 				if roleName == "members" {
 					if channelModerationPatch.Roles.Members != nil && !*channelModerationPatch.Roles.Members {
@@ -281,7 +281,11 @@ func (r *Role) RolePatchFromChannelModerationsPatch(channelModerationsPatch []*C
 	// Iterate through the patch and add any permissions that dont already exist on the role
 	for _, channelModerationPatch := range channelModerationsPatch {
 		for permission, moderatedPermissionName := range CHANNEL_MODERATED_PERMISSIONS_MAP {
-			if roleName == "members" && channelModerationPatch.Roles.Members != nil && *channelModerationPatch.Roles.Members && *channelModerationPatch.Name == moderatedPermissionName {
+			if roleName == "members" && channelModerationPatch.Roles.Members != nil && *channelModerationPatch.Roles.Members && (*channelModerationPatch.Name == moderatedPermissionName || *channelModerationPatch.Name == "manage_members") {
+				if *channelModerationPatch.Name == "manage_members" && !ManageMembersPermissionMatchesChannelType(moderatedPermissionName, channelType) {
+					continue
+				}
+
 				permissionsToAddToPatch[permission] = true
 			}
 

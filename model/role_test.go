@@ -88,6 +88,7 @@ func TestRolePatchFromChannelModerationsPatch(t *testing.T) {
 		ChannelModerationsPatch  []*ChannelModerationPatch
 		RoleName                 string
 		ExpectedPatchPermissions []string
+		ChannelType              string
 	}{
 		{
 			"Patch to member role adding a permission that already exists",
@@ -100,6 +101,7 @@ func TestRolePatchFromChannelModerationsPatch(t *testing.T) {
 			},
 			"members",
 			baseModeratedPermissions,
+			CHANNEL_OPEN,
 		},
 		{
 			"Patch to member role with moderation patch for guest role",
@@ -112,6 +114,7 @@ func TestRolePatchFromChannelModerationsPatch(t *testing.T) {
 			},
 			"members",
 			baseModeratedPermissions,
+			CHANNEL_OPEN,
 		},
 		{
 			"Patch to guest role with moderation patch for member role",
@@ -124,6 +127,7 @@ func TestRolePatchFromChannelModerationsPatch(t *testing.T) {
 			},
 			"guests",
 			baseModeratedPermissions,
+			CHANNEL_OPEN,
 		},
 		{
 			"Patch to member role removing multiple channel moderated permissions",
@@ -144,6 +148,7 @@ func TestRolePatchFromChannelModerationsPatch(t *testing.T) {
 			},
 			"members",
 			[]string{PERMISSION_CREATE_POST.Id},
+			CHANNEL_OPEN,
 		},
 		{
 			"Patch to guest role removing multiple channel moderated permissions",
@@ -164,6 +169,7 @@ func TestRolePatchFromChannelModerationsPatch(t *testing.T) {
 			},
 			"guests",
 			[]string{PERMISSION_CREATE_POST.Id},
+			CHANNEL_OPEN,
 		},
 		{
 			"Patch enabling and removing multiple channel moderated permissions ",
@@ -188,6 +194,7 @@ func TestRolePatchFromChannelModerationsPatch(t *testing.T) {
 			},
 			"members",
 			[]string{PERMISSION_CREATE_POST.Id, PERMISSION_USE_CHANNEL_MENTIONS.Id},
+			CHANNEL_OPEN,
 		},
 		{
 			"Patch enabling a partially enabled permission",
@@ -200,6 +207,7 @@ func TestRolePatchFromChannelModerationsPatch(t *testing.T) {
 			},
 			"members",
 			[]string{PERMISSION_ADD_REACTION.Id, PERMISSION_REMOVE_REACTION.Id},
+			CHANNEL_OPEN,
 		},
 		{
 			"Patch disabling a partially disabled permission",
@@ -216,12 +224,13 @@ func TestRolePatchFromChannelModerationsPatch(t *testing.T) {
 			},
 			"members",
 			[]string{PERMISSION_CREATE_POST.Id},
+			CHANNEL_OPEN,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			baseRole := &Role{Permissions: tc.Permissions}
-			rolePatch := baseRole.RolePatchFromChannelModerationsPatch(tc.ChannelModerationsPatch, tc.RoleName)
+			rolePatch := baseRole.RolePatchFromChannelModerationsPatch(tc.ChannelType, tc.ChannelModerationsPatch, tc.RoleName)
 			assert.ElementsMatch(t, tc.ExpectedPatchPermissions, *rolePatch.Permissions)
 		})
 	}

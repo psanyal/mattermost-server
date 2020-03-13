@@ -7733,5 +7733,9 @@
   {
     "id": "web.incoming_webhook.user.app_error",
     "translation": "Couldn't find the user."
+  },
+  {
+    "id": "api.channel.permission_restricted_by_system_or_team_scheme",
+    "translation": "Cannot add a permission that is restricted by the team or system permission scheme."
   }
 ]

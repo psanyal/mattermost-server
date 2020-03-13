@@ -340,3 +340,7 @@ func GetGroupNameFromUserIds(userIds []string) string {
 
 	return hex.EncodeToString(h.Sum(nil))
 }
+
+func ManageMembersPermissionMatchesChannelType(permission, channelType string) bool {
+	return (permission == PERMISSION_MANAGE_PUBLIC_CHANNEL_MEMBERS.Id && channelType == CHANNEL_OPEN) || (permission == PERMISSION_MANAGE_PRIVATE_CHANNEL_MEMBERS.Id && channelType == CHANNEL_PRIVATE)
+}
